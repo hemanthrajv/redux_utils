@@ -1,47 +1,64 @@
-import 'package:built_collection/built_collection.dart';
-import 'package:code_builder/code_builder.dart';
-import 'package:dart_style/dart_style.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:pubspec/pubspec.dart';
+import 'package:recase/recase.dart';
+import 'package:redux_utils/parser/parser.dart';
+import 'package:redux_utils/utils.dart';
+
+Directory _current = Directory.current;
 
 class ModelBuilder {
-  method() {
-    final Class app = Class((b) {
-      b
-        ..name = 'App'
-        ..extend = refer('StatefulWidget')
-        ..constructors = ListBuilder<Constructor>(<Constructor>[
-          Constructor((b) {
-            b
-              ..constant = true
-              ..optionalParameters = ListBuilder<Parameter>([
-                Parameter((b) {
-                  b
-                    ..name = 'key'
-                    ..named = true
-                    ..type = TypeReference((b) {
-                      b..symbol = 'Key';
-                    });
-                })
-              ]);
-          }),
-        ])
-        ..methods = ListBuilder(<Method>[
-          Method((b) {
-            b
-              ..name = 'createState'
-              ..annotations = ListBuilder<Expression>(
-                [
-                  CodeExpression(
-                    Code('override'),
-                  ),
-                ],
-              )
-              ..lambda = true
-              ..returns = Reference('_AppState')
-              ..body = Code('_AppState()');
-          })
-        ]);
-    });
-    final emitter = DartEmitter();
-    final String formatted = DartFormatter().format('${app.accept(emitter)}');
+  final String sourcePath;
+  final String modelsPath;
+  final String metaPath;
+  ModelParser parser;
+  String pubSpecPath;
+  PubSpec pubSpec;
+
+  ModelBuilder()
+      : sourcePath = _current.path,
+        modelsPath = '${_current.path}/lib/models',
+        metaPath = '${_current.path}/meta';
+
+  Future<void> initialize() async {
+    final String _pubSpecPath = '$sourcePath/pubspec.yaml';
+
+    bool _pubSpecExists = Utils.fileExists(path: _pubSpecPath);
+
+    if (!_pubSpecExists) {
+      throw SetupError(message: 'file not found: pubspec.yaml');
+    } else {
+      pubSpecPath = _pubSpecPath;
+    }
+    final PubSpec _pub = await PubSpec.load(_current);
+    parser = ModelParser(packageName: _pub.name);
+    pubSpec = _pub;
+  }
+
+  Future<void> generateModelFromJson() async {
+    final Map<String, dynamic> data = (json.decode(File('$metaPath/models.json')
+        .readAsStringSync()
+        .replaceAll(RegExp('//.*\n'), '')) as Map<String, dynamic>);
+
+    String models = '';
+
+    for (String model in data.keys) {
+      String modelCode = parser.generateModel(json.encode(data[model]), model);
+      if (modelCode != null) {
+        await Utils.createAndWrite(
+          path: '$modelsPath/${ReCase(model).snakeCase}.dart',
+          content: modelCode,
+        );
+        models = models +
+            'export \'package:${pubSpec.name}/models/${ReCase(model).snakeCase}.dart\';\n';
+      }
+    }
+
+    await Utils.createAndWrite(
+      path: '$modelsPath/models.g.dart',
+      content: models,
+    );
   }
 }

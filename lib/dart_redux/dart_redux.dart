@@ -163,9 +163,11 @@ abstract class AppState implements Built<AppState, AppStateBuilder> {
 import 'package:built_value/serializer.dart';
 import 'package:built_value/standard_json_plugin.dart';
 
+import 'package:${pubSpec.name}/models/models.dart';
+
 part 'serializers.g.dart';
 
-@SerializersFor(const <Type>[])
+@SerializersFor(<Type>[])
 final Serializers serializers =
     (_\$serializers.toBuilder()..addPlugin(new StandardJsonPlugin())).build();
 ''';
@@ -176,7 +178,7 @@ final Serializers serializers =
     );
 
     final String _model =
-        'export \'package:${pubSpec.name}/models/app_state.dart\';\n';
+        'export \'package:${pubSpec.name}/models/models.g.dart\';\nexport \'package:${pubSpec.name}/models/app_state.dart\';\n';
     await Utils.createAndWrite(
         path: '$modelsPath/models.dart', content: _model);
   }
@@ -285,6 +287,15 @@ class AuthMiddleware {
 import 'package:${pubSpec.name}/models/models.dart';
 import 'package:${pubSpec.name}/middleware/auth_middleware.dart';
 import 'package:redux/redux.dart';
+
+EpicMiddleware<AppState> epicMiddleware(AppRepository repository) =>
+    EpicMiddleware<AppState>(
+      combineEpics<AppState>(
+        <List<Epic<AppState>>>[
+          
+        ],
+      ),
+    );
 
 List<Middleware<AppState>> middleware(AppRepository repository) =>
     <List<Middleware<AppState>>>[

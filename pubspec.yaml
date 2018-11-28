@@ -5,7 +5,7 @@ version: 0.0.1
 # author: raj <email@example.com>
 
 environment:
-  sdk: '>=2.0.0 <3.0.0'
+  sdk: '>=2.0.0-dev.68.0 <3.0.0'
 
 dependencies:
   path: ^1.4.1
@@ -16,6 +16,7 @@ dependencies:
   args: ^1.5.0
   pubspec: ^0.1.1
   recase: ^2.0.0+1
+  tuple: ^1.0.2
 
 dev_dependencies:
   test: ^1.0.0

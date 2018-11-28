@@ -1,18 +1,24 @@
-import 'dart:async';
 import 'dart:io';
 
-import 'package:pubspec/pubspec.dart';
 import 'package:redux_utils/dart_redux/dart_redux.dart';
+import 'package:redux_utils/dart_redux/model_builder.dart';
 import 'package:redux_utils/utils.dart';
 
 Directory _current = Directory.current;
 Directory _temp = Directory.systemTemp;
 
-void main() async {
+void main(List<String> arguments) async {
   try {
-    final DartRedux _redux = DartRedux();
-    await _redux.initialize();
-    await _redux.setup();
+    if (arguments.contains('--setup')) {
+      final DartRedux _redux = DartRedux();
+      await _redux.initialize();
+      await _redux.setup();
+    }
+    if (arguments.contains('--generate-models')) {
+      final ModelBuilder _modelBuilder = ModelBuilder();
+      await _modelBuilder.initialize();
+      await _modelBuilder.generateModelFromJson();
+    }
   } catch (e) {
     if (e is SetupError) {
       print(e.message);
