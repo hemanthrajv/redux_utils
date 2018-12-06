@@ -2,13 +2,13 @@
 
 Redux Utils helps to setup basic boiler plate to use `redux.dart` with `flutter`.
 
+Note: Still experimenting. Suggestions and PR welcome.
+
 ## Installing
 
 Specify the package in `dev_dependencies` like,
 
-    redux_utils:
-        git:
-            url: https://github.com/hemanthrajv/redux_utils.git
+    redux_utils: 0.0.1
 
 
 ## Usage
