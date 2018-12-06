@@ -6,7 +6,7 @@ import 'package:recase/recase.dart';
 import 'package:redux_utils/utils.dart';
 
 Directory _current = Directory.current;
-Directory _temp = Directory.systemTemp;
+//Directory _temp = Directory.systemTemp;
 
 typedef VoidCallback = void Function();
 
@@ -75,7 +75,6 @@ class DartRedux {
   Future<void> setup() async {
     if (!initialized) {
       throw SetupError(message: 'Please call `initialize()` before setup');
-      return;
     }
 
     print('Editing pubspec.yaml...');
@@ -96,11 +95,11 @@ class DartRedux {
     await _createUtils();
     print('Creating views...');
     await _createViews();
-    print('Creating routes...');
-    await _createRoutes();
+//    print('Creating routes...');
+//    await _createRoutes();
     print('Creating theme...');
     await _createTheme();
-    print('Ediing main.dart...');
+    print('Editing main.dart...');
     await _editMain();
   }
 
@@ -178,7 +177,8 @@ final Serializers serializers =
     );
 
     final String _model =
-        'export \'package:${pubSpec.name}/models/models.g.dart\';\nexport \'package:${pubSpec.name}/models/app_state.dart\';\n';
+        'export \'package:${pubSpec.name}/models/serializers.dart\';\nexport \'package:${pubSpec.name}/models/app_state.dart\';\n';
+    //must add: 'export \'package:${pubSpec.name}/models/models.g.dart\'\n;
     await Utils.createAndWrite(
         path: '$modelsPath/models.dart', content: _model);
   }
@@ -287,13 +287,12 @@ class AuthMiddleware {
 import 'package:${pubSpec.name}/models/models.dart';
 import 'package:${pubSpec.name}/middleware/auth_middleware.dart';
 import 'package:redux/redux.dart';
+import 'package:redux_epics/redux_epics.dart';
 
 EpicMiddleware<AppState> epicMiddleware(AppRepository repository) =>
     EpicMiddleware<AppState>(
       combineEpics<AppState>(
-        <List<Epic<AppState>>>[
-          
-        ],
+        <Epic<AppState>>[],
       ),
     );
 
@@ -423,109 +422,109 @@ class InitPage extends StatelessWidget {
     );
   }
 
-  Future<void> _createRoutes() async {
-    final String _routes = '''library router;
-
-import 'package:flutter/material.dart';
-import 'package:${pubSpec.name}/utils/utils.dart';
-
-// ignore: avoid_classes_with_only_static_members
-class AppRoutes {
-  static const String _initialRoute = '/';
-
-  static AppRoute initialRoute = AppRoute(name: _initialRoute);
-}
-
-typedef AppRouteHandler = Widget Function(Map<String, String> params);
-
-class AppRoute {
-  static RegExp variablePattern = RegExp(r'{(\\w+)}');
-  final String name;
-  final RegExp pattern;
-  final bool fullScreenDialog;
-  final bool maintainState;
-  final Logger log;
-
-  AppRoute({
-    @required this.name,
-    this.fullScreenDialog = false,
-    this.maintainState = true,
-  })  : pattern = RegExp(
-            '\${name == '/' ? r'^/\$' : name.replaceAll(variablePattern, r'(.*[^/])')}'),
-        log = Logger(tag: 'AppRoute');
-
-  Map<String, String> getParams(String url) {
-    final RegExp pathPattern =
-        RegExp(name.replaceAll(variablePattern, variablePattern.pattern));
-    final Match key = pathPattern.firstMatch(name);
-    final Match value = pattern.firstMatch(url);
-    final Map<String, String> params = <String, String>{};
-    for (int i = 1; i <= key.groupCount; i++) {
-      params[key.group(i)] = value.group(i);
-    }
-    log.d('Path: \$name ---> Params: \$params');
-    return params.isEmpty ? null : params;
-  }
-
-  String withArguments(List<String> arguments) {
-    if (arguments == null) {
-      return name;
-    }
-    String newPath = name;
-    final List<Match> matches = variablePattern.allMatches(name).toList();
-    if (matches.length > arguments.length) {
-      throw Exception('Route variables and argument count mismatch');
-    }
-    for (int i = 0; i < matches.length; i++) {
-      newPath = newPath.replaceFirst(variablePattern, arguments[i]);
-    }
-    return newPath;
-  }
-}
-
-class AppRouter {
-  final Map<AppRoute, AppRouteHandler> routeMap;
-  final List<AppRoute> routes;
-  final Logger log = Logger(tag: 'AppRouter');
-
-  AppRouter({@required this.routeMap}) : routes = routeMap.keys.toList();
-
-  Route<dynamic> onGenerateRoute(RouteSettings settings) {
-    final AppRoute route = routes.firstWhere(
-      (AppRoute route) {
-        return route.pattern.hasMatch(settings.name) ||
-            route.name == settings.name;
-      },
-      orElse: () => null,
-    );
-
-    if (route == null) {
-      throw Exception('Route Not Found');
-    }
-
-    final RouteSettings routeSettings =
-        route.name == '/' ? settings.copyWith(isInitialRoute: true) : settings;
-
-    final Map<String, String> params =
-        route.name == settings.name ? null : route.getParams(settings.name);
-
-    return MaterialPageRoute<dynamic>(
-      fullscreenDialog: route.fullScreenDialog,
-      settings: routeSettings,
-      maintainState: route.maintainState,
-      builder: (BuildContext context) {
-        return routeMap[route](params);
-      },
-    );
-  }
-}
-''';
-
-    await Utils.createAndWrite(
-      path: '$libPath/routes.dart',
-      content: _routes,
-    );
-  }
+//  Future<void> _createRoutes() async {
+//    final String _routes = '''library router;
+//
+//import 'package:flutter/material.dart';
+//import 'package:${pubSpec.name}/utils/utils.dart';
+//
+//// ignore: avoid_classes_with_only_static_members
+//class AppRoutes {
+//  static const String _initialRoute = '/';
+//
+//  static AppRoute initialRoute = AppRoute(name: _initialRoute);
+//}
+//
+//typedef AppRouteHandler = Widget Function(Map<String, String> params);
+//
+//class AppRoute {
+//  static RegExp variablePattern = RegExp(r'{(\\w+)}');
+//  final String name;
+//  final RegExp pattern;
+//  final bool fullScreenDialog;
+//  final bool maintainState;
+//  final Logger log;
+//
+//  AppRoute({
+//    @required this.name,
+//    this.fullScreenDialog = false,
+//    this.maintainState = true,
+//  })  : pattern = RegExp(
+//            '\${name == '/' ? r'^/\$' : name.replaceAll(variablePattern, r'(.*[^/])')}'),
+//        log = Logger(tag: 'AppRoute');
+//
+//  Map<String, String> getParams(String url) {
+//    final RegExp pathPattern =
+//        RegExp(name.replaceAll(variablePattern, variablePattern.pattern));
+//    final Match key = pathPattern.firstMatch(name);
+//    final Match value = pattern.firstMatch(url);
+//    final Map<String, String> params = <String, String>{};
+//    for (int i = 1; i <= key.groupCount; i++) {
+//      params[key.group(i)] = value.group(i);
+//    }
+//    log.d('Path: \$name ---> Params: \$params');
+//    return params.isEmpty ? null : params;
+//  }
+//
+//  String withArguments(List<String> arguments) {
+//    if (arguments == null) {
+//      return name;
+//    }
+//    String newPath = name;
+//    final List<Match> matches = variablePattern.allMatches(name).toList();
+//    if (matches.length > arguments.length) {
+//      throw Exception('Route variables and argument count mismatch');
+//    }
+//    for (int i = 0; i < matches.length; i++) {
+//      newPath = newPath.replaceFirst(variablePattern, arguments[i]);
+//    }
+//    return newPath;
+//  }
+//}
+//
+//class AppRouter {
+//  final Map<AppRoute, AppRouteHandler> routeMap;
+//  final List<AppRoute> routes;
+//  final Logger log = Logger(tag: 'AppRouter');
+//
+//  AppRouter({@required this.routeMap}) : routes = routeMap.keys.toList();
+//
+//  Route<dynamic> onGenerateRoute(RouteSettings settings) {
+//    final AppRoute route = routes.firstWhere(
+//      (AppRoute route) {
+//        return route.pattern.hasMatch(settings.name) ||
+//            route.name == settings.name;
+//      },
+//      orElse: () => null,
+//    );
+//
+//    if (route == null) {
+//      throw Exception('Route Not Found');
+//    }
+//
+//    final RouteSettings routeSettings =
+//        route.name == '/' ? settings.copyWith(isInitialRoute: true) : settings;
+//
+//    final Map<String, String> params =
+//        route.name == settings.name ? null : route.getParams(settings.name);
+//
+//    return MaterialPageRoute<dynamic>(
+//      fullscreenDialog: route.fullScreenDialog,
+//      settings: routeSettings,
+//      maintainState: route.maintainState,
+//      builder: (BuildContext context) {
+//        return routeMap[route](params);
+//      },
+//    );
+//  }
+//}
+//''';
+//
+//    await Utils.createAndWrite(
+//      path: '$libPath/routes.dart',
+//      content: _routes,
+//    );
+//  }
 
   Future<void> _createTheme() async {
     final String _theme = '''library theme;
@@ -553,7 +552,6 @@ import 'package:${pubSpec.name}/data/preference_client.dart';
 import 'package:${pubSpec.name}/middleware/middleware.dart';
 import 'package:${pubSpec.name}/models/models.dart';
 import 'package:${pubSpec.name}/reducers/reducers.dart';
-import 'package:${pubSpec.name}/routes.dart';
 import 'package:${pubSpec.name}/theme.dart';
 import 'package:${pubSpec.name}/views/init_page.dart';
 import 'package:redux/redux.dart';
@@ -610,34 +608,41 @@ class _${_package}State extends State<$_package> {
         navigatorKey: store.state.navigator,
         title: '$_package',
         theme: themeData,
-        onGenerateRoute: AppRouter(
-          routeMap: AppNavigator(
-            store: store,
-            navigator: store.state.navigator,
-          ).routeMap,
-        ).onGenerateRoute,
       ),
     );
   }
 }
-
-class AppNavigator {
-  final Store<AppState> store;
-  final GlobalKey<NavigatorState> navigator;
-
-  AppNavigator({this.store, this.navigator});
-
-  Map<AppRoute, AppRouteHandler> get routeMap => _getRouteMap();
-
-  Map<AppRoute, AppRouteHandler> _getRouteMap() {
-    return <AppRoute, AppRouteHandler>{
-      AppRoutes.initialRoute: (Map<String, String> params) {
-        return InitPage();
-      },
-    };
-  }
-}
 ''';
+
+//import 'package:${pubSpec.name}/routes.dart';
+
+//    '''
+//            onGenerateRoute: AppRouter(
+//          routeMap: AppNavigator(
+//            store: store,
+//            navigator: store.state.navigator,
+//          ).routeMap,
+//        ).onGenerateRoute,
+//    '''
+//'''
+//
+//class AppNavigator {
+//  final Store<AppState> store;
+//  final GlobalKey<NavigatorState> navigator;
+//
+//  AppNavigator({this.store, this.navigator});
+//
+//  Map<AppRoute, AppRouteHandler> get routeMap => _getRouteMap();
+//
+//  Map<AppRoute, AppRouteHandler> _getRouteMap() {
+//    return <AppRoute, AppRouteHandler>{
+//      AppRoutes.initialRoute: (Map<String, String> params) {
+//        return InitPage();
+//      },
+//    };
+//  }
+//}
+//''';
 
     await Utils.createAndWrite(
       path: '$libPath/main.dart',

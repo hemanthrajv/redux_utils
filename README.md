@@ -8,7 +8,7 @@ Note: Still experimenting. Suggestions and PR welcome.
 
 Specify the package in `dev_dependencies` like,
 
-    redux_utils: 0.0.1
+    redux_utils: 0.0.2
 
 
 ## Usage
@@ -16,7 +16,7 @@ Specify the package in `dev_dependencies` like,
 Note: Use this tool only with new flutter projects, it does not support existing projects. Please commit the initial project before using this tool.
 
 * First run `flutter packages get` after adding `redux_utils` to `dev_dependencies`
-* From root of the flutter project run `flutter pub pub run redux_utils:main`
+* From root of the flutter project run `flutter pub pub run redux_utils:main --setup`
 * Then run `flutter packages get`
 * Next, run `flutter pub pub run build_runner build`
 
@@ -70,7 +70,6 @@ Redux setup is done, you can start using the package.
             - home_page.dart
         - init_page.dart
     - main.dart
-    - routes.dart
     - theme.dart
 
 ## Author

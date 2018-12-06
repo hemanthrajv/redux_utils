@@ -1,11 +1,6 @@
-import 'dart:io';
-
 import 'package:redux_utils/dart_redux/dart_redux.dart';
 import 'package:redux_utils/dart_redux/model_builder.dart';
 import 'package:redux_utils/utils.dart';
-
-Directory _current = Directory.current;
-Directory _temp = Directory.systemTemp;
 
 void main(List<String> arguments) async {
   try {

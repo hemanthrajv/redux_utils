@@ -1,0 +1,3 @@
+class ExampleAssets {
+  ExampleAssets._();
+}
