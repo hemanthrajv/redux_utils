@@ -202,7 +202,7 @@ class ApiError extends Error {}
 
 class ApiClient extends http.IOClient {
   static const String scheme = 'https';
-  static const String host = 'stagingapi.medzbook.com';
+  static const String host = 'example.com';
   static const int port = 443;
   static const String scope = '/v1';
 
