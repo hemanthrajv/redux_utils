@@ -1,6 +1,6 @@
 name: redux_utils
 description: redux_utils helps you to setup redux boiler plate on newly created futter apps.
-version: 0.0.2
+version: 0.0.3
 homepage: https://github.com/hemanthrajv/
 author: Hemanth Raj <raj84325@gmail.com>
 

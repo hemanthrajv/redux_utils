@@ -8,7 +8,7 @@ Note: Still experimenting. Suggestions and PR welcome.
 
 Specify the package in `dev_dependencies` like,
 
-    redux_utils: 0.0.2
+    redux_utils: 0.0.3
 
 
 ## Usage
