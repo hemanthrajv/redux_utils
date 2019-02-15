@@ -45,11 +45,15 @@ Redux setup is done, you can start using the package.
 
     /actions
         - actions.dart
-    /api
-        - api_client.dart
     /data
         - app_repository.dart
+        - app_repository_provider.dart
         - preference_client.dart
+        /api
+            - api_client.dart
+            - api_routes.dart
+        /services
+            - api_service.dart
     /middleware
         - auth_middleware.dart
         - middleware.dart

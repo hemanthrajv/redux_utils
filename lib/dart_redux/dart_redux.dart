@@ -22,6 +22,7 @@ class DartRedux {
   final String middlewarePath;
   final String dataPath;
   final String apiPath;
+  final String servicesPath;
   final String utilsPath;
   final String viewsPath;
   final String libPath;
@@ -51,7 +52,8 @@ class DartRedux {
         reducersPath = '${_current.path}/lib/reducers',
         middlewarePath = '${_current.path}/lib/middleware',
         modelsPath = '${_current.path}/lib/models',
-        apiPath = '${_current.path}/lib/api',
+        apiPath = '${_current.path}/lib/data/api',
+        servicesPath = '${_current.path}/lib/data/services',
         dataPath = '${_current.path}/lib/data',
         utilsPath = '${_current.path}/lib/utils',
         viewsPath = '${_current.path}/lib/views',
@@ -81,6 +83,8 @@ class DartRedux {
     await _editPubSpec();
     print('Creating api...');
     await _createApi();
+    print('Creating services...');
+    await _createService();
     print('Creating data...');
     await _createData();
     print('Creating actions...');
@@ -196,39 +200,379 @@ Reducer<AppState> reducer = combineReducers(<Reducer<AppState>>[]);
   }
 
   Future<void> _createApi() async {
-    final String _apiClient = '''import 'package:http/http.dart' as http;
+    final String _apiClient = '''import 'dart:convert';
 
-class ApiError extends Error {}
+import 'package:built_collection/built_collection.dart';
+import 'package:built_value/serializer.dart';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart' as io_client;
+import 'package:meta/meta.dart';
+import 'package:${pubSpec.name}/models/models.dart';
+import 'package:${pubSpec.name}/utils/utils.dart';
 
-class ApiClient extends http.IOClient {
-  static const String scheme = 'https';
-  static const String host = 'example.com';
-  static const int port = 443;
-  static const String scope = '/v1';
+//class ApiError extends Error {}
 
-  String authToken;
+enum Method {
+  GET,
+  POST,
+  PUT,
+  DELETE,
+  PATCH,
+}
 
-  Map<String, String> get defaultHeaders => <String, String>{
-        'Content-Type': 'application/json',
-      };
+class ApiConfig {
+  const ApiConfig({
+    @required this.scheme,
+    @required this.host,
+    this.port,
+    this.scope,
+  }) : assert(scheme != null && host != null,
+            'Scheme, host and port cannot be null');
 
-  String getUrl({String path, Map<String, dynamic> queryParams}) {
+  final String scheme;
+  final String host;
+  final int port;
+  final String scope;
+
+  @override
+  String toString() {
+    return '\$scheme://\$host:\$port\${scope ?? ''}';
+  }
+}
+
+class ApiResponse<T> extends http.Response {
+  ApiResponse.from(http.Response response, this.responseKey, {this.fullType})
+      : super(
+          response.body,
+          response.statusCode,
+          headers: response.headers,
+          isRedirect: response.isRedirect,
+          persistentConnection: response.persistentConnection,
+          reasonPhrase: response.reasonPhrase,
+          request: response.request,
+        ) {
+    _data = _getData();
+    _error = _getError();
+    _pagination = _getPagination();
+  }
+
+  final String responseKey;
+
+  final FullType fullType;
+
+  // data block
+  T get data => _data;
+
+  T _data;
+
+  T _getData() {
+    if (!isSuccess || body == null) {
+      return null;
+    }
+
+    dynamic decodedBody = json.decode(body);
+    if (responseKey != null) {
+      decodedBody = decodedBody[responseKey];
+    }
+
+    return serializers.deserialize(
+      decodedBody,
+      specifiedType: fullType ?? FullType(T),
+    );
+  }
+
+  // end
+
+  // pagination block
+  bool get hasPagination => _pagination != null;
+
+  Pagination get pagination => _pagination;
+
+  Pagination _pagination;
+
+  Pagination _getPagination() {
+    if (!isSuccess || body == null) {
+      return null;
+    }
+
+    dynamic decodedBody = json.decode(body);
+    if (responseKey != null) {
+      decodedBody = decodedBody['pagination'];
+    }
+
+    if (decodedBody == null) {
+      return null;
+    }
+
+    return serializers.deserialize(
+      decodedBody,
+      specifiedType: const FullType(Pagination),
+    );
+  }
+
+  // end
+
+  // error block
+  ApiError _error;
+
+  ApiError get error => _error;
+
+  ApiError _getError() {
+    if (isSuccess) {
+      return null;
+    }
+    const String errorKey = 'errors';
+
+    try {
+      dynamic decodedBody = json.decode(body);
+      decodedBody = decodedBody[errorKey];
+
+      return serializers.deserialize(
+        decodedBody,
+        specifiedType: const FullType(ApiError),
+      );
+    } on FormatException {
+      return ApiError((ApiErrorBuilder b) {
+        b
+          ..status = 0
+          ..message = ListBuilder<String>(<String>['Something went wrong']);
+      });
+    }
+  }
+
+  // end
+
+  bool get isSuccess => statusCode >= 200 && statusCode < 300;
+}
+
+//ApiClient used to make HTTP/HTTPS calls
+class ApiClient extends io_client.IOClient {
+  ApiClient({@required this.config})
+      : assert(config != null, 'Config cannot be null') {
+    log.d(config.toString());
+  }
+
+  final Logger log = Logger(tag: 'ApiClient');
+
+  final ApiConfig config;
+  Map<String, String> authHeaders;
+
+  Map<String, String> get defaultHeaders =>
+      <String, String>{'Content-Type': 'application/json'};
+
+  String buildUrl({String path, Map<String, dynamic> queryParams}) {
     final Uri uri = Uri(
-      scheme: scheme,
-      host: host,
-      port: port,
+      scheme: config.scheme,
+      host: config.host,
+      port: config.port,
       queryParameters: queryParams,
-      path: '\${scope ?? ''}\$path',
+      path: '\${config.scope ?? ''}\$path',
     );
 
     return uri.toString();
   }
+
+  Future<ApiResponse<R>> callJsonApi<R>({
+    @required Method method,
+    @required String path,
+    Map<String, dynamic> queryParams,
+    Map<String, String> headers,
+    dynamic body,
+    Encoding encoding,
+    //Request data is wrapped in this key before making any request
+    String requestKey,
+    //Deserializer uses this key to extract deserializable object from response
+    String responseKey,
+    FullType fullType,
+  }) async {
+    final String url = buildUrl(path: path, queryParams: queryParams);
+
+    http.Response response;
+
+    dynamic requestBody = body;
+
+    if (requestKey != null) {
+      requestBody = <String, dynamic>{\'\$requestKey\': requestBody};
+    }
+    final String encodedBody =
+        requestBody != null ? json.encode(requestBody) : null;
+
+    final Map<String, String> allHeaders = <String, String>{}
+      ..addAll(defaultHeaders)
+      ..addAll(authHeaders ?? <String, String>{})
+      ..addAll(headers ?? <String, String>{});
+
+    switch (method) {
+      case Method.GET:
+        response = await get(
+          url,
+          headers: allHeaders,
+        );
+        break;
+      case Method.POST:
+        response = await post(
+          url,
+          headers: allHeaders,
+          body: encodedBody,
+          encoding: encoding,
+        );
+        break;
+      case Method.PUT:
+        response = await put(
+          url,
+          headers: allHeaders,
+          body: encodedBody,
+          encoding: encoding,
+        );
+        break;
+      case Method.PATCH:
+        response = await patch(
+          url,
+          headers: allHeaders,
+          body: encodedBody,
+          encoding: encoding,
+        );
+        break;
+      case Method.DELETE:
+        response = await delete(
+          url,
+          headers: allHeaders,
+        );
+        break;
+      default:
+        throw 'Method \$method does not exist';
+    }
+
+    log.d(\'\'\'
+
+    ____________________________________
+    URL: \${response.request.url}
+    HEADERS: \${response.request.headers}
+    RESPONSE : \${response.body}
+    ____________________________________
+    \'\'\');
+
+    return ApiResponse<R>.from(response, responseKey, fullType: fullType);
+  }
 }
+
 ''';
 
     await Utils.createAndWrite(
       path: '$apiPath/api_client.dart',
       content: _apiClient,
+    );
+
+    final String _apiRoutes =
+        '''import 'package:${pubSpec.name}/data/api/api_client.dart';
+
+class ApiRoutes {
+  static const ApiConfig debugConfig = ApiConfig(
+    scheme: 'https',
+    host: 'example.com',
+    port: 443,
+    scope: scope,
+  );
+
+  static const ApiConfig prodConfig = ApiConfig(
+    scheme: 'https',
+    host: 'example.com',
+    port: 443,
+    scope: scope,
+  );
+
+  //Scope
+  static const String scope = '/v1';
+}
+''';
+
+    await Utils.createAndWrite(
+      path: '$apiPath/api_routes.dart',
+      content: _apiRoutes,
+    );
+  }
+
+  Future<void> _createService() async {
+    final String _apiService = '''import 'dart:convert';
+
+import 'package:built_value/serializer.dart';
+import 'package:meta/meta.dart';
+import 'package:${pubSpec.name}/data/api/api_client.dart';
+import 'package:${pubSpec.name}/models/serializers.dart';
+
+// Any api service should extend this class
+abstract class ApiService {
+  const ApiService({@required this.client}) : assert(client != null);
+
+  final ApiClient client;
+
+  Map<String, String> get defaultHeaders => client.defaultHeaders;
+
+  Map<String, String> get authHeaders => client.authHeaders;
+
+  Map<String, String> getAllHeaders({Map<String, String> headers}) {
+    return <String, String>{}
+      ..addAll(client.defaultHeaders)
+      ..addAll(client.authHeaders ?? <String, String>{})
+      ..addAll(headers ?? <String, String>{});
+  }
+
+  String buildUrl({String path, Map<String, dynamic> queryParams}) =>
+      client.buildUrl(path: path, queryParams: queryParams);
+
+  Map<String, dynamic> buildBodyFrom<T>(
+    T data, {
+    List<String> keysToRemove,
+    Map<String, dynamic> dataToAdd,
+    String withRootKey,
+  }) {
+    final Map<String, dynamic> body = serialize<T>(data);
+    keysToRemove?.forEach(body.remove);
+    body.addAll(dataToAdd ?? <String, dynamic>{});
+    if (withRootKey != null) {
+      final Map<String, dynamic> withRoot = <String, dynamic>{};
+      withRoot[withRootKey] = body;
+      return withRoot;
+    }
+    return body;
+  }
+
+  String encode(dynamic data) {
+    return json.encode(data);
+  }
+
+  dynamic decode(String data) {
+    return json.decode(data);
+  }
+
+  Object serializeQuery<T>(T query, {FullType fullType}) {
+    if (query == null) {
+      return null;
+    }
+
+    return serialize<T>(query, fullType: fullType);
+  }
+
+  Object serialize<T>(T data, {FullType fullType}) {
+    return serializers.serialize(
+      data,
+      specifiedType: fullType ?? FullType(T),
+    );
+  }
+
+  T deserialize<T>(Object data, {FullType fullType}) {
+    return serializers.deserialize(
+      data,
+      specifiedType: fullType ?? FullType(T),
+    );
+  }
+}
+''';
+
+    await Utils.createAndWrite(
+      path: '$servicesPath/api_service.dart',
+      content: _apiService,
     );
   }
 
@@ -244,20 +588,76 @@ class PreferencesClient {
 ''';
 
     await Utils.createAndWrite(
-        path: '$dataPath/preference_client.dart', content: _preferences);
+      path: '$dataPath/preference_client.dart',
+      content: _preferences,
+    );
 
     final String _appRepo =
-        '''import 'package:${pubSpec.name}/data/preference_client.dart';
+        '''import 'package:flutter/material.dart';
+import 'package:${pubSpec.name}/data/api/api_client.dart';
+import 'package:${pubSpec.name}/data/app_repository_provider.dart';
+import 'package:${pubSpec.name}/data/preference_client.dart';
+import 'package:${pubSpec.name}/data/services/api_service.dart';
+import 'package:${pubSpec.name}/data/services/auth_service.dart';
+import 'package:${pubSpec.name}/data/services/filter_service.dart';
+import 'package:${pubSpec.name}/data/services/invitation_service.dart';
+import 'package:${pubSpec.name}/data/services/user_service.dart';
 
 class AppRepository {
-  final PreferencesClient preferencesClient;
+  AppRepository({@required this.preferencesClient, @required this.config})
+      : assert(preferencesClient != null && config != null) {
+    apiClient = ApiClient(config: config);
+    services = <ApiService>[];
+  }
 
-  AppRepository({this.preferencesClient});
+  final PreferencesClient preferencesClient;
+  final ApiConfig config;
+  ApiClient apiClient;
+
+  // All available services list
+  List<ApiService> services;
+
+  static AppRepository of(BuildContext context) {
+    final AppRepositoryProvider provider =
+        context.inheritFromWidgetOfExactType(AppRepositoryProvider);
+    if (provider == null) {
+      throw 'AppRepositoryProvider not found';
+    }
+
+    return provider.repository;
+  }
+
+  ApiService getService<T>() {
+    return services.firstWhere((ApiService s) => s is T, orElse: () => null);
+  }
 }
 ''';
 
     await Utils.createAndWrite(
-        path: '$dataPath/app_repository.dart', content: _appRepo);
+      path: '$dataPath/app_repository.dart',
+      content: _appRepo,
+    );
+
+    final String _repoProvider = '''import 'package:flutter/material.dart';
+import 'package:${pubSpec.name}/data/app_repository.dart';
+
+class AppRepositoryProvider extends InheritedWidget {
+  const AppRepositoryProvider(
+      {Key key, @required this.repository, @required Widget child})
+      : assert(repository != null && child != null),
+        super(key: key, child: child);
+
+  final AppRepository repository;
+
+  @override
+  bool updateShouldNotify(AppRepositoryProvider oldWidget) {
+    return oldWidget.repository != repository;
+  }
+}
+''';
+
+    await Utils.createAndWrite(
+        path: '$dataPath/app_repository_provider.dart', content: _repoProvider);
   }
 
   Future<void> _createMiddleware() async {
