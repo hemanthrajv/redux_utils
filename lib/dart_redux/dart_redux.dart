@@ -1008,6 +1008,7 @@ class _${_package}State extends State<$_package> {
         navigatorKey: store.state.navigator,
         title: '$_package',
         theme: themeData,
+        home: InitPage(),
       ),
     );
   }
